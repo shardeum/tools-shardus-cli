@@ -28,7 +28,7 @@
   "license": "ISC",
   "dependencies": {
     "@shardeum-foundation/tools-shardus-cli-debugger": "1.0.3",
-    "@shardeum-foundation/tools-shardus-cli-network": "4.4.1",
+    "@shardeum-foundation/tools-shardus-cli-network": "4.4.2",
     "caporal": "1.4.0",
     "shelljs": "0.8.5",
     "pm2": "5.4.3",
