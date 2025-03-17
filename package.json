@@ -1,6 +1,6 @@
 {
   "name": "@shardeum-foundation/tools-shardus-cli",
-  "version": "4.4.0-prerelease.0",
+  "version": "4.4.0-prerelease.1",
   "description": "The Shardus command line tool.",
   "main": "index.js",
   "scripts": {
