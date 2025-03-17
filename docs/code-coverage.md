@@ -63,6 +63,10 @@ Code coverage is configured through the `network-config.json` file. The configur
       "explorer": false  // Whether to instrument the explorer server
     },
     "outputDir": "coverage",
+    "includeDependencies": [
+      "@shardeum-foundation/library1",  // Include coverage for specific dependencies
+      "@shardeum-foundation/**"         // Use glob pattern to include all packages in a namespace
+    ],
     "env": {
       "LOAD_JSON_CONFIGS": "debug-10-nodes.config.json",
       "NODE_ENV": "development",
@@ -71,6 +75,46 @@ Code coverage is configured through the `network-config.json` file. The configur
   }
 }
 ```
+
+## Including Coverage for Dependencies
+
+By default, coverage tools exclude code in `node_modules` to improve performance. However, when you're developing libraries that are used as dependencies, you may want to track their coverage too.
+
+The Shardus CLI now supports this via the `includeDependencies` configuration:
+
+```json
+"includeDependencies": [
+  "@shardeum-foundation/crypto",
+  "@shardeum-foundation/utils",
+  "@shardeum-foundation/**"  // Glob pattern to include all @shardeum-foundation packages
+]
+```
+
+### How It Works
+
+When you specify dependencies in the `includeDependencies` array:
+
+1. The CLI passes the appropriate flags to the coverage tool:
+   - For NYC/Istanbul: `--include="package-name"`
+   - For C8: `--include="package-name"`
+
+2. These flags instruct the coverage tool to instrument code in those dependencies, even though they're in `node_modules`.
+
+### Source Maps for Dependencies
+
+For proper coverage visualization of dependencies, you need source maps. Ensure your dependencies:
+
+1. Generate source maps during their build process (`"sourceMap": true"` in tsconfig.json)
+2. Include both the compiled code and source maps in their npm package
+
+Without source maps, you may still collect coverage data, but it will be harder to visualize in HTML reports.
+
+### Best Practices
+
+- Be selective about which dependencies to include, as instrumenting too many can impact performance
+- Use glob patterns (like `@shardeum-foundation/**`) to include all packages in a namespace
+- For dependencies you control, ensure they generate and publish source maps
+- If coverage reports don't show source files properly, check that source maps are correctly configured in the dependency
 
 ## Environment Variable Handling
 
@@ -119,6 +163,123 @@ export SHARDUS_NETWORK_ID="localnet"
 # Execute with Istanbul/NYC coverage
 nyc --reporter=lcov --reporter=text --report-dir="coverage/shardus-instance-9001" node /path/to/dist/src/index.js "$@"
 ```
+
+## Understanding Coverage Files and Scripts
+
+When you run a Shardus network with coverage enabled, the following files and directories are created:
+
+1. **Wrapper Scripts** (`instances/.nyc-wrapper-shardus-instance-*.sh`): These are automatically generated shell scripts that wrap the node process with the coverage tool. They handle:
+   - Setting up environment variables
+   - Executing the process with coverage tools
+   - Storing coverage data in the correct location
+   
+   These wrapper scripts are automatically regenerated when you start the network with coverage enabled, and they're removed when you run `shardus coverage clean`.
+
+2. **Coverage Data** (`instances/coverage/`): This directory contains all the raw coverage data collected by the coverage tools:
+   - `lcov.info` files: LCOV format coverage reports
+   - `.nyc_output` directories: Raw coverage data in NYC format
+   - `coverage-final.json` files: JSON format coverage data
+   - `v8.json` files: V8 format coverage data (when using C8)
+
+3. **Merged Reports** (`instances/coverage/merged-validators/`): When you run `shardus coverage merge`, this directory is created to store the combined coverage reports from all processes of the same type.
+
+All of these files and directories are cleaned up when you run `shardus coverage clean`.
+
+## Coverage Commands
+
+You can manage code coverage data using the following commands:
+
+#### View Coverage Status
+
+```bash
+shardus coverage status
+```
+
+This command displays information about the available coverage data, including the number of coverage reports by type (validators, archivers, monitor, explorer) and any merged reports.
+
+#### Clean Coverage Data
+
+```bash
+shardus coverage clean
+```
+
+This command:
+- Deletes all coverage data from the coverage directory
+- Removes any wrapper scripts (`.nyc-wrapper-*.sh`) from the instances directory
+- Allows you to start fresh with a new test run
+
+You can use the `--verbose` flag to see a detailed list of what is being deleted:
+
+```bash
+shardus coverage clean --verbose
+```
+
+#### Merge Coverage Data
+
+```bash
+shardus coverage merge
+```
+
+This command merges coverage data by type (validators, archivers, monitor, explorer) and generates combined reports. This is particularly useful when you have multiple validator or archiver nodes and want to see their combined coverage.
+
+The merged reports are stored in subdirectories of your coverage directory:
+- `merged-validators` - Combined coverage for all validators
+- `merged-archivers` - Combined coverage for all archivers
+- `merged-monitor` - Coverage for monitor servers
+- `merged-explorer` - Coverage for explorer servers
+
+After merging, HTML reports are generated in each merged directory, which you can view in your browser:
+
+```bash
+open instances/coverage/merged-validators/lcov-report/index.html
+```
+
+### Command Options
+
+All coverage commands accept the following options:
+
+- `-d, --dir <network_dir>` - The directory containing the coverage data (defaults to ./instances)
+- `--tool <tool>` - Override the coverage tool specified in the network config (istanbul or c8)
+- `--outputdir <output_dir>` - The output directory for coverage data within the network directory (defaults to coverage)
+- `--global` - Force using globally installed coverage tools
+- `--verbose` - Show more detailed output during operations
+
+Example with options:
+
+```bash
+# Use the globally installed coverage tool with verbose output
+shardus coverage merge --global --verbose
+
+# Override the tool and specify a custom output directory
+shardus coverage merge -d ./my-network --tool c8 --outputdir my-coverage
+```
+
+### Troubleshooting Coverage Commands
+
+If you encounter errors when running the coverage commands:
+
+1. **Install Coverage Tools Globally**: The most reliable way to use the coverage commands is with globally installed tools:
+   ```bash
+   npm install -g nyc c8
+   ```
+   Then use the `--global` flag when running coverage commands:
+   ```bash
+   shardus coverage merge --global
+   ```
+
+2. **Check for Coverage Files**: The merge command requires that coverage reports were generated correctly. Verify that your coverage directories contain files like `coverage-final.json` or `.nyc_output/`.
+
+3. **Use Verbose Mode**: If you're having trouble diagnosing issues, try using verbose mode:
+   ```bash
+   shardus coverage merge --verbose
+   ```
+
+4. **Manual Merge**: If the automatic merge still fails, you can merge coverage reports manually:
+   ```bash
+   cd instances
+   nyc merge coverage/shardus-instance-9001/.nyc_output coverage/merged/coverage.json
+   nyc report -t coverage/merged --reporter=lcov --reporter=text
+   ```
 
 ## Usage
 
@@ -234,19 +395,70 @@ The CLI will automatically pass these variables to the coverage wrapper scripts.
 
 ### Permission Errors (EACCES)
 
-If you see errors like `Error: spawn /path/to/file.js EACCES` in the logs:
+If you see permission errors (EACCES) when running Shardus with coverage enabled, it's likely related to the wrapper script permissions:
 
-1. **Check Wrapper Script Permissions**: Make sure the wrapper script created by the tool has proper execution permissions:
+```
+Error: EACCES: permission denied, exec '/path/to/instances/.nyc-wrapper-shardus-instance-9001.sh'
+```
+
+To resolve this:
+
+1. **Check wrapper script permissions**:
    ```bash
    chmod +x instances/.nyc-wrapper-shardus-instance-*.sh
    ```
 
-2. **Use Latest Version**: Make sure you're using the latest version of the CLI tool with the shell script wrapper fix.
+2. **Restart the network** or the specific instance that's having issues.
 
-3. **Run Manually**: Try running the coverage command manually to see more detailed errors:
+3. **Clean and regenerate wrapper scripts**:
+   ```bash
+   shardus coverage clean
+   shardus stop
+   shardus start 1
+   ```
+
+### Wrapper Script Issues
+
+The wrapper scripts (`.nyc-wrapper-shardus-instance-*.sh`) are automatically generated to execute processes with coverage enabled. If you're having issues:
+
+1. **Inspect a wrapper script** to see how it's configured:
+   ```bash
+   cat instances/.nyc-wrapper-shardus-instance-9001.sh
+   ```
+
+2. **Check if the script is executable**:
+   ```bash
+   ls -la instances/.nyc-wrapper-*
+   ```
+   All wrapper scripts should have executable (`x`) permission.
+
+3. **Manually execute a wrapper script** for more detailed error messages:
    ```bash
    cd instances
-   nyc --reporter=lcov --reporter=text --report-dir="coverage/shardus-instance-9001" node dist/src/index.js
+   ./.nyc-wrapper-shardus-instance-9001.sh
+   ```
+
+4. **Generate new wrapper scripts** by cleaning coverage data and restarting:
+   ```bash
+   shardus coverage clean
+   shardus stop
+   shardus start 1
+   ```
+
+### Coverage Tool Not Found
+
+If you see errors about the coverage tool not being found:
+
+1. **Install the coverage tool globally**:
+   ```bash
+   npm install -g nyc
+   # or for c8
+   npm install -g c8
+   ```
+
+2. **Run coverage commands with the `--global` flag**:
+   ```bash
+   shardus coverage merge --global
    ```
 
 ### No Coverage Reports Generated
@@ -363,4 +575,13 @@ If your process fails with errors about missing environment variables (e.g., `En
   },
   "outputDir": "coverage"
 }
-``` 
+```
+
+if (stats.validators + stats.archivers + stats.monitor + stats.explorer === 0) {
+  console.log('\nNo coverage data found. Make sure you have enabled coverage in your network-config.json')
+  console.log('and run some tests with coverage enabled.')
+} else {
+  console.log('\nRun the following commands to manage coverage:')
+  console.log('  shardus coverage merge - Merge coverage data and generate reports')
+  console.log('  shardus coverage clean - Clean coverage data')
+} 
