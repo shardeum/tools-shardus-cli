@@ -1,6 +1,6 @@
 {
   "name": "@shardeum-foundation/tools-shardus-cli",
-  "version": "4.4.0-prerelease.2",
+  "version": "4.5.0-prerelease.0",
   "description": "The Shardus command line tool.",
   "main": "index.js",
   "scripts": {
@@ -32,8 +32,8 @@
   "author": "Shardus",
   "license": "ISC",
   "dependencies": {
-    "@shardeum-foundation/tools-shardus-cli-debugger": "1.1.0-prerelease.2",
-    "@shardeum-foundation/tools-shardus-cli-network": "4.5.0-prerelease.2",
+    "@shardeum-foundation/tools-shardus-cli-debugger": "1.2.0-prerelease.1",
+    "@shardeum-foundation/tools-shardus-cli-network": "4.6.0-prerelease.1",
     "caporal": "1.4.0",
     "eslint": "8.43.0",
     "pm2": "5.4.3",
