@@ -32,8 +32,8 @@
   "author": "Shardus",
   "license": "ISC",
   "dependencies": {
-    "@shardeum-foundation/tools-shardus-cli-debugger": "1.2.0-prerelease.1",
-    "@shardeum-foundation/tools-shardus-cli-network": "4.6.0-prerelease.1",
+    "@shardeum-foundation/tools-shardus-cli-debugger": "1.2.0",
+    "@shardeum-foundation/tools-shardus-cli-network": "4.6.0",
     "caporal": "1.4.0",
     "eslint": "8.43.0",
     "pm2": "5.4.3",
