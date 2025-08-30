@@ -27,13 +27,13 @@
     "shardus": "./bin/index.js"
   },
   "engines": {
-    "node": "18.19.1"
+    "node": "20.19.3"
   },
   "author": "Shardus",
   "license": "ISC",
   "dependencies": {
-    "@shardeum-foundation/tools-shardus-cli-debugger": "1.2.0",
-    "@shardeum-foundation/tools-shardus-cli-network": "4.6.0",
+    "@shardeum-foundation/tools-shardus-cli-debugger": "1.2.1",
+    "@shardeum-foundation/tools-shardus-cli-network": "4.6.1",
     "caporal": "1.4.0",
     "eslint": "8.43.0",
     "pm2": "5.4.3",
